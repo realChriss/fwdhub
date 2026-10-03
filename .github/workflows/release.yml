@@ -3,6 +3,7 @@ name: release
 on:
   push:
     branches: [main]
+    paths: ["src/**", "go.mod", "go.sum"]
 
 permissions:
   contents: write
@@ -38,7 +39,7 @@ jobs:
             arch=${target#*/}
             ext=""
             if [ "$os" = windows ]; then ext=.exe; fi
-            GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w" -o "dist/fwdhub-$os-$arch$ext" ./src
+            GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=v0.1.${{ github.run_number }}" -o "dist/fwdhub-$os-$arch$ext" ./src
           done
       - name: Publish release
         env:

@@ -6,7 +6,19 @@ A small terminal UI to manage SSH port tunnels.
 
 ## Install
 
-Download the binary for your platform from the [latest release](https://github.com/realChriss/fwdhub/releases/latest).
+Linux and macOS:
+
+```
+curl -fsSL https://raw.githubusercontent.com/realChriss/fwdhub/main/install.sh | sh
+```
+
+Windows (PowerShell):
+
+```
+irm https://raw.githubusercontent.com/realChriss/fwdhub/main/install.ps1 | iex
+```
+
+Or download the binary for your platform from the [latest release](https://github.com/realChriss/fwdhub/releases/latest).
 
 ### Build from source
 

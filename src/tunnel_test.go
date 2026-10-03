@@ -149,3 +149,37 @@ func TestAddTunnel(t *testing.T) {
 		t.Fatalf("err %q, tunnels %+v", m.formErr, m.tunnels)
 	}
 }
+
+func TestReplaceExe(t *testing.T) {
+	exe := filepath.Join(t.TempDir(), "fwdhub")
+	if err := os.WriteFile(exe, []byte("old"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := replaceExe(exe, strings.NewReader("new")); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(exe); string(b) != "new" {
+		t.Errorf("got %q, want new", b)
+	}
+	if _, err := os.Stat(exe + ".new"); err == nil {
+		t.Error(".new left behind")
+	}
+}
+
+func TestSemver(t *testing.T) {
+	cases := []struct {
+		tag, cur string
+		want     bool
+	}{
+		{"v0.1.10", "v0.1.9", true},
+		{"v0.2.0", "v0.1.99", true},
+		{"v0.1.9", "v0.1.10", false},
+		{"v0.1.5", "v0.1.5", false},
+		{"", "v0.1.5", false},
+	}
+	for _, c := range cases {
+		if got := slices.Compare(semver(c.tag), semver(c.cur)) > 0; got != c.want {
+			t.Errorf("%s newer than %s: got %v", c.tag, c.cur, got)
+		}
+	}
+}

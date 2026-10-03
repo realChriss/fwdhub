@@ -56,6 +56,8 @@ func main() {
 		fatal("ssh not found in PATH. %s", hint)
 	}
 
+	checkUpdate()
+
 	base, err := os.UserConfigDir()
 	if err != nil {
 		fatal("%v", err)
