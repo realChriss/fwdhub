@@ -1,17 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 )
 
 var version = "dev"
@@ -31,17 +32,14 @@ func checkUpdate() {
 	if version == "dev" {
 		return
 	}
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get("https://api.github.com/repos/" + repo + "/releases/latest")
+	out, err := curl("--max-time", "3", "https://api.github.com/repos/"+repo+"/releases/latest")
 	if err != nil {
 		return
 	}
 	var rel struct {
 		Tag string `json:"tag_name"`
 	}
-	err = json.NewDecoder(resp.Body).Decode(&rel)
-	resp.Body.Close()
-	if err != nil || slices.Compare(semver(rel.Tag), semver(version)) <= 0 {
+	if err := json.Unmarshal(out, &rel); err != nil || slices.Compare(semver(rel.Tag), semver(version)) <= 0 {
 		return
 	}
 
@@ -57,7 +55,11 @@ func checkUpdate() {
 		asset += ".exe"
 	}
 	fmt.Println("Downloading " + asset + "...")
-	if err := download(exe, "https://github.com/"+repo+"/releases/download/"+rel.Tag+"/"+asset); err != nil {
+	out, err = curl("https://github.com/" + repo + "/releases/download/" + rel.Tag + "/" + asset)
+	if err == nil {
+		err = replaceExe(exe, bytes.NewReader(out))
+	}
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "fwdhub: update failed: %v\n", err)
 		return
 	}
@@ -65,16 +67,16 @@ func checkUpdate() {
 	os.Exit(0)
 }
 
-func download(exe, url string) error {
-	resp, err := (&http.Client{Timeout: 5 * time.Minute}).Get(url)
-	if err != nil {
-		return err
+func curl(args ...string) ([]byte, error) {
+	name := "curl"
+	if runtime.GOOS == "windows" {
+		name = "curl.exe"
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("GET %s: %s", url, resp.Status)
+	out, err := exec.Command(name, append([]string{"-fsSL"}, args...)...).Output()
+	if ee, ok := err.(*exec.ExitError); ok {
+		err = errors.New(strings.TrimSpace(string(ee.Stderr)))
 	}
-	return replaceExe(exe, resp.Body)
+	return out, err
 }
 
 func replaceExe(exe string, r io.Reader) error {
