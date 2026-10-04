@@ -1,3 +1,4 @@
 /fwdhub
 /fwdhub.exe
 *.test
+/dist

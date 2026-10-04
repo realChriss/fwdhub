@@ -1,8 +1,14 @@
-# fwdhub
+<p align="center">
+  <img src="assets/icon.svg" alt="fwdhub icon" width="96">
+</p>
 
-A small terminal UI to manage SSH port tunnels.
+<h1 align="center">fwdhub</h1>
 
-![fwdhub demo](assets/demo.gif)
+<p align="center">A small terminal UI to manage SSH port tunnels.</p>
+
+<p align="center">
+  <img src="assets/demo.gif" alt="fwdhub demo">
+</p>
 
 ## Install
 
@@ -27,10 +33,10 @@ Needs Go.
 ```
 git clone https://github.com/realChriss/fwdhub.git
 cd fwdhub
-go build -o fwdhub ./src
+./build.sh
 ```
 
-On Windows use `-o fwdhub.exe`.
+On Windows run `build.bat`. Binaries for all platforms land in `dist/`.
 
 ## Requirements
 
