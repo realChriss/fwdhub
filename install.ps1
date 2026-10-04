@@ -31,6 +31,11 @@ Remove-Item "$exe.old" -ErrorAction SilentlyContinue
 if (Test-Path $exe) { Move-Item $exe "$exe.old" }
 Move-Item "$exe.new" $exe
 Ok "Installed to $exe"
+$lnk = (New-Object -ComObject WScript.Shell).CreateShortcut("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\fwdhub.lnk")
+$lnk.TargetPath = $exe
+$lnk.WorkingDirectory = $env:USERPROFILE
+$lnk.Save()
+Ok 'Added to the Start menu'
 Write-Host ''
 Write-Host '  Run ' -NoNewline
 Write-Host 'fwdhub' -ForegroundColor Cyan -NoNewline
