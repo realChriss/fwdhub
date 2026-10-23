@@ -56,7 +56,9 @@ func main() {
 		fatal("ssh not found in PATH. %s", hint)
 	}
 
-	checkUpdate()
+	if exe, err := exePath(); err == nil {
+		os.Remove(exe + ".old")
+	}
 
 	base, err := os.UserConfigDir()
 	if err != nil {

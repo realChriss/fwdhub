@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -13,58 +12,61 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 var version = "dev"
 
 const repo = "realChriss/fwdhub"
 
-func checkUpdate() {
-	exe, err := os.Executable()
-	if err == nil {
-		exe, err = filepath.EvalSymlinks(exe)
-	}
-	if err != nil {
-		return
-	}
-	os.Remove(exe + ".old")
+type updateMsg string
 
-	if version == "dev" {
-		return
-	}
-	out, err := curl("--max-time", "3", "https://api.github.com/repos/"+repo+"/releases/latest")
+type updatedMsg struct {
+	tag string
+	err error
+}
+
+func exePath() (string, error) {
+	exe, err := os.Executable()
 	if err != nil {
-		return
+		return "", err
+	}
+	return filepath.EvalSymlinks(exe)
+}
+
+func checkUpdate() tea.Msg {
+	if version == "dev" {
+		return nil
+	}
+	out, err := curl("--max-time", "10", "https://api.github.com/repos/"+repo+"/releases/latest")
+	if err != nil {
+		return nil
 	}
 	var rel struct {
 		Tag string `json:"tag_name"`
 	}
 	if err := json.Unmarshal(out, &rel); err != nil || slices.Compare(semver(rel.Tag), semver(version)) <= 0 {
-		return
+		return nil
 	}
+	return updateMsg(rel.Tag)
+}
 
-	fmt.Printf("fwdhub %s is available (you have %s). Update now? [y/N] ", rel.Tag, version)
-	var answer string
-	fmt.Scanln(&answer)
-	if a := strings.ToLower(answer); a != "y" && a != "yes" {
-		return
+func installUpdate(tag string) tea.Cmd {
+	return func() tea.Msg {
+		asset := "fwdhub-" + runtime.GOOS + "-" + runtime.GOARCH
+		if runtime.GOOS == "windows" {
+			asset += ".exe"
+		}
+		exe, err := exePath()
+		if err == nil {
+			var out []byte
+			if out, err = curl("https://github.com/" + repo + "/releases/download/" + tag + "/" + asset); err == nil {
+				err = replaceExe(exe, bytes.NewReader(out))
+			}
+		}
+		return updatedMsg{tag, err}
 	}
-
-	asset := "fwdhub-" + runtime.GOOS + "-" + runtime.GOARCH
-	if runtime.GOOS == "windows" {
-		asset += ".exe"
-	}
-	fmt.Println("Downloading " + asset + "...")
-	out, err = curl("https://github.com/" + repo + "/releases/download/" + rel.Tag + "/" + asset)
-	if err == nil {
-		err = replaceExe(exe, bytes.NewReader(out))
-	}
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "fwdhub: update failed: %v\n", err)
-		return
-	}
-	fmt.Printf("Updated to %s. Start fwdhub again to use it.\n", rel.Tag)
-	os.Exit(0)
 }
 
 func curl(args ...string) ([]byte, error) {

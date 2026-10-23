@@ -62,6 +62,7 @@ var helpKeys = [][2]string{
 	{"c", "duplicate the selected tunnel"},
 	{"l", "show the ssh log of the selected tunnel"},
 	{"X", "stop all tunnels"},
+	{"u", "install the available update"},
 	{"q  ctrl+c", "quit; running tunnels keep running"},
 }
 
@@ -85,6 +86,9 @@ type model struct {
 	width   int
 	height  int
 	notice  string
+
+	newVersion string
+	updateLine string
 
 	inputs  [fCount]textinput.Model
 	typ     int
@@ -114,7 +118,7 @@ func newModel(tunnels []Tunnel, runs map[string]run) *model {
 	return m
 }
 
-func (m *model) Init() tea.Cmd { return tick() }
+func (m *model) Init() tea.Cmd { return tea.Batch(tick(), checkUpdate) }
 
 func (m *model) find(name string) int {
 	return slices.IndexFunc(m.tunnels, func(t Tunnel) bool { return t.Name == name })
@@ -194,6 +198,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.logText = readLog(m.logName)
 		}
 		return m, tick()
+	case updateMsg:
+		m.newVersion = string(msg)
+	case updatedMsg:
+		m.updateLine = ""
+		if msg.err != nil {
+			m.notice = "update failed: " + msg.err.Error()
+			m.newVersion = msg.tag
+		} else {
+			m.updateLine = "✓ Updated to " + msg.tag + ". Restart fwdhub to use it."
+		}
 	case trustedMsg:
 		if i := m.find(string(msg)); i >= 0 {
 			m.toggle(m.tunnels[i])
@@ -236,6 +250,11 @@ func (m *model) key(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.openForm(Tunnel{Type: "local", RemoteHost: "localhost"}, -1)
 	case "?":
 		m.mode = modeHelp
+	case "u":
+		if tag := m.newVersion; tag != "" {
+			m.newVersion, m.updateLine = "", "Downloading fwdhub "+tag+"…"
+			return m, installUpdate(tag)
+		}
 	case "X":
 		m.ask("Stop all tunnels?", func() {
 			for name := range m.runs {
@@ -471,6 +490,11 @@ func (m *model) listView() string {
 	b.WriteString("\n")
 	if m.notice != "" {
 		b.WriteString("  " + red.Render("✕ "+m.notice) + "\n")
+	}
+	if m.newVersion != "" {
+		b.WriteString("  " + yellow.Render("fwdhub "+m.newVersion+" is available (you have "+version+").") + "  " + hints("u", "update") + "\n")
+	} else if m.updateLine != "" {
+		b.WriteString("  " + green.Render(m.updateLine) + "\n")
 	}
 	if m.mode == modeConfirm {
 		b.WriteString("  " + yellow.Bold(true).Render(m.question) + "  " + hints("y", "yes", "n", "no"))
